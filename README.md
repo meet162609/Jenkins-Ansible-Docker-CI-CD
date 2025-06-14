@@ -221,14 +221,14 @@ ssh root@<web-server_private_ip>
 
 ## Ansible Project Setup
 
-### Step 23: Create Ansible Project Directory
+### Step 23: Create Ansible Project Directory (Ansible)
 
 ```bash
 mkdir -p /root/sourcecode
 cd /root/sourcecode
 ```
 
-### Step 24: Define Inventory
+### Step 24: Define Inventory (Ansible)
 
 ```bash
 nano inventory
@@ -241,7 +241,7 @@ Paste:
 <Docker Private Ip> ansible_user=root ansible_become=true
 ```
 
-### Step 25: Create Playbook to Deploy Container
+### Step 25: Create Playbook to Deploy Container (Ansible)
 
 ```bash
 nano run_container.yml
@@ -305,11 +305,18 @@ Paste:
 - Build Triggers:
   - GitHub hook trigger for GITScm polling
 - Build Steps:
+  - Send files or execute commands over SSH
+    
+## Jenkins In This Command Add
 
 ```bash
 # Send File To Ansible Server
 rsync -avh /var/lib/jenkins/workspace/<project_name>/Dockerfile root@<ansible_ip>:/opt/
+```
 
+## Ansible In This Command Add
+
+```bash
 # Trigger Ansible Playbook
 cd /opt
 
