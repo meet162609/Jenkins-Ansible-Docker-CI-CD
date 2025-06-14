@@ -351,8 +351,6 @@ docker image rmi ${JOB_NAME}v1.${BUILD_ID} \
 
 ```bash
 cd /root/sourcecode
-nano run_container.yml
-# Update image name with new pushed repo name
 ansible-playbook -i inventory run_container.yml
 ```
 
