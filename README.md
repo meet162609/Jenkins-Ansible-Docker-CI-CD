@@ -1,5 +1,7 @@
 # CI/CD Pipeline Setup Using Jenkins, Ansible, and  Docker
 
+![Screenshot](nda.png)
+
 ## Step 1: Launch Four Instances
 
 1. Jenkins
@@ -130,14 +132,19 @@ chmod +x jenkins.sh
 sudo ./jenkins.sh
 ```
 
-### Step 12-15: Repeat SSH Config Steps (Same as Ansible)
+### Step 12: Set Root User Password (Same as Ansible)
 
 ```bash
 passwd root
 ```
+### Step 13: Generate SSH Key Pair
+
 ```bash
 ssh-keygen
 ```
+
+### Step 14: Enable SSH Root Login
+
 ```bash
 sudo nano /etc/ssh/sshd_config
 PermitRootLogin yes
@@ -146,6 +153,10 @@ PasswordAuthentication yes
 sudo nano /etc/ssh/sshd_config.d/10-cloud-init.conf
 PermitRootLogin yes
 PasswordAuthentication yes
+```
+### Step 15: Restart SSH Service & Verify
+
+```bash
 sudo systemctl restart ssh
 sudo sshd -T | grep -Ei 'passwordauthentication|permitrootlogin'
 ```
@@ -160,14 +171,19 @@ sudo sshd -T | grep -Ei 'passwordauthentication|permitrootlogin'
 sudo apt install docker.io -y
 ```
 
-### Step 17-20: Same SSH Setup Steps
+### Step 17: Set Root User Password
 
 ```bash
 passwd root
 ```
+### Step 18: Generate SSH Key Pair
 
 ```bash
 ssh-keygen
+```
+### Step 19: Enable SSH Root Login
+
+```bash
 sudo nano /etc/ssh/sshd_config
 PermitRootLogin yes
 PasswordAuthentication yes
@@ -175,6 +191,10 @@ PasswordAuthentication yes
 sudo nano /etc/ssh/sshd_config.d/10-cloud-init.conf
 PermitRootLogin yes
 PasswordAuthentication yes
+```
+### Step 20: Restart SSH Service & Verify
+
+```bash
 sudo systemctl restart ssh
 sudo sshd -T | grep -Ei 'passwordauthentication|permitrootlogin'
 ```
@@ -336,5 +356,5 @@ http://<Docker_Public_Ip>:9000
 ```
 
 ---
+![Output Screenshot](Output.png)
 
-**End of README**
