@@ -134,10 +134,15 @@ sudo ./jenkins.sh
 
 ```bash
 passwd root
+```
+```bash
 ssh-keygen
+```
+```bash
 sudo nano /etc/ssh/sshd_config
 PermitRootLogin yes
 PasswordAuthentication yes
+
 sudo nano /etc/ssh/sshd_config.d/10-cloud-init.conf
 PermitRootLogin yes
 PasswordAuthentication yes
@@ -159,10 +164,14 @@ sudo apt install docker.io -y
 
 ```bash
 passwd root
+```
+
+```bash
 ssh-keygen
 sudo nano /etc/ssh/sshd_config
 PermitRootLogin yes
 PasswordAuthentication yes
+
 sudo nano /etc/ssh/sshd_config.d/10-cloud-init.conf
 PermitRootLogin yes
 PasswordAuthentication yes
