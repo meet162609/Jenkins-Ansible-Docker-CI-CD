@@ -1,6 +1,6 @@
 # CI/CD Pipeline Setup Using Jenkins, Ansible, and  Docker
 
-![Screenshot](nda.png)
+![Screenshot](J.png)
 
 ## Step 1: Launch Four Instances
 
