@@ -83,41 +83,67 @@ Paste the following:
 
 set -e
 
-echo "Updating system packages..."
-sudo apt update && sudo apt upgrade -y
+echo "[Step 1] Load Kernel Modules..."
+cat <<EOF | sudo tee /etc/modules-load.d/containerd.conf
+overlay
+br_netfilter
+EOF
 
-echo "Installing Java (OpenJDK 17)..."
-sudo apt install openjdk-17-jdk -y
+sudo modprobe overlay
+sudo modprobe br_netfilter
 
-echo "Adding Jenkins GPG key..."
-curl -fsSL https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key | sudo tee \  
-  /usr/share/keyrings/jenkins-keyring.asc > /dev/null
+echo "[Step 2] Set Sysctl Parameters for Kubernetes Networking..."
+cat <<EOF | sudo tee /etc/sysctl.d/kubernetes.conf
+net.bridge.bridge-nf-call-ip6tables = 1
+net.bridge.bridge-nf-call-iptables = 1
+net.ipv4.ip_forward = 1
+EOF
 
-echo "Adding Jenkins repository..."
-echo deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] \  
-  https://pkg.jenkins.io/debian-stable binary/ | sudo tee \  
-  /etc/apt/sources.list.d/jenkins.list > /dev/null
+sudo sysctl --system
 
-echo "Updating package list with Jenkins repo..."
+echo "[Step 3] Install Required Packages..."
+sudo apt update -y
+sudo apt install -y apt-transport-https ca-certificates curl gpg
+
+echo "[Step 4] Add Kubernetes APT Repository..."
+sudo mkdir -p /etc/apt/keyrings
+curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.28/deb/Release.key | \
+  sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+
+echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] \
+https://pkgs.k8s.io/core:/stable:/v1.28/deb/ /" | \
+  sudo tee /etc/apt/sources.list.d/kubernetes.list > /dev/null
+
 sudo apt update
 
-echo "Installing Jenkins..."
-sudo apt install jenkins -y
+echo "[Step 5] Install Kubernetes Components..."
+sudo apt install -y kubelet kubeadm kubectl
+sudo apt-mark hold kubelet kubeadm kubectl
 
-echo "Starting and enabling Jenkins service..."
-sudo systemctl start jenkins
-sudo systemctl enable jenkins
+echo "[Step 6] Install and Configure containerd..."
+sudo apt install -y containerd
+sudo mkdir -p /etc/containerd
+containerd config default | sudo tee /etc/containerd/config.toml
+sudo sed -i 's/SystemdCgroup = false/SystemdCgroup = true/' /etc/containerd/config.toml
 
-echo "Allowing firewall on port 8080 (if UFW is active)..."
-sudo ufw allow 8080 || true
-sudo ufw reload || true
+sudo systemctl restart containerd
+sudo systemctl enable containerd
 
-echo "Jenkins installation completed!"
-echo
+echo "[Step 7] Initialize Kubernetes Cluster..."
+sudo kubeadm init --pod-network-cidr=192.168.0.0/16
 
-echo "Access Jenkins via: http://<your-server-ip>:8080"
-echo "Initial admin password:"
-sudo cat /var/lib/jenkins/secrets/initialAdminPassword
+echo "[Step 8] Configure kubectl for Regular User..."
+mkdir -p $HOME/.kube
+sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+sudo chown $(id -u):$(id -g) $HOME/.kube/config
+
+echo "[Step 9] Install Calico CNI Plugin..."
+kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.27.0/manifests/calico.yaml
+
+echo "[Step 10] Show Node Status..."
+kubectl get nodes
+
+echo "✅ Kubernetes Master Setup Completed!"
 ```
 
 ### Step 10: Permission to SH File
