@@ -476,6 +476,7 @@ nano jenkins.pem
 
 ```bash
 chmod +x jenkins.pem
+```
 
 4. Permission In File (Ansible)
 
