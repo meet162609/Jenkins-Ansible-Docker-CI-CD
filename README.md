@@ -353,7 +353,254 @@ cd /root/sourcecode
 ansible-playbook -i inventory run_container.yml
 ```
 
-### Step 32: Access Deployed Web App
+### Step 32: Jenkins Free Style Shell Script (Option 1)
+
+#### 🖥️ Step 1: Prepare `jenkins.pem` on Jenkins Server (Jenkins)
+
+1. Navigate to Jenkins home directory:
+ 
+```bash
+   cd /var/lib/jenkins
+```
+2. Create and paste your .pem key file:
+
+```bash
+nano jenkins.pem
+```
+3. Save and make it executable:
+
+```bash
+chmod +x jenkins.pem
+```
+#### 🖥️ Step 2: Jenkins Freestyle Project Configuration
+
+- 📌 Git Configuration:
+- Go to Jenkins Dashboard → New Item → Freestyle Project.
+- Enter a project name and click OK.
+- In Source Code Management, choose Git
+- Repository URL:<Your GitHub Repo>
+- Branch:<Your Repo Branch>
+
+#### Build Step:
+- Click Add build step → Execute shell
+- Add your script:
+
+```sh
+#!/bin/bash
+ 
+# Define variables
+ANSIBLE_USER=ubuntu
+ANSIBLE_HOST=3.7.253.121              # Ansible EC2 Public IP
+PEM_KEY=/var/lib/jenkins/jenkins.pem
+JOB_NAME=meet                        # Jenkins Job name
+DOCKERHUB_USER=<Your DockerHub User Name>
+DOCKERHUB_PASS='<Your DockerHub Password>'
+PRIVATE_DOCKER_HOST=172.31.14.70      # Private IP of Docker host from Ansible
+ 
+# Step 1: Generate inventory and playbook on Ansible server
+ssh -o StrictHostKeyChecking=no -i "$PEM_KEY" $ANSIBLE_USER@$ANSIBLE_HOST << EOF
+ 
+sudo mkdir -p /root/sourcecode
+ 
+sudo tee /root/sourcecode/inventory > /dev/null <<EOL
+[dockerhost]
+$PRIVATE_DOCKER_HOST ansible_user=root ansible_become=true
+EOL
+ 
+sudo tee /root/sourcecode/run_container.yml > /dev/null <<EOL
+- hosts: all
+  become: yes
+  tasks:
+    - name: Run Docker container using Ansible module
+      community.docker.docker_container:
+        name: cloudknowledge-container
+        image: ${DOCKERHUB_USER}/${JOB_NAME}:latest
+        state: started
+        recreate: true
+        published_ports:
+          - "9000:80"
+EOL
+ 
+EOF
+ 
+# Step 2: Transfer Dockerfile to Ansible server
+rsync -avh -e "ssh -o StrictHostKeyChecking=no -i $PEM_KEY" /var/lib/jenkins/workspace/$JOB_NAME/Dockerfile root@$ANSIBLE_HOST:/opt/
+ 
+# Step 3: Build, tag, login, push, clean on Ansible server
+ssh -o StrictHostKeyChecking=no -i "$PEM_KEY" $ANSIBLE_USER@$ANSIBLE_HOST << EOF
+ 
+cd /opt
+ 
+# Login to Docker Hub
+echo "$DOCKERHUB_PASS" | sudo docker login -u $DOCKERHUB_USER --password-stdin
+ 
+# Build Docker image
+sudo docker image build -t ${JOB_NAME}v1.${BUILD_ID} .
+ 
+# Tag image
+sudo docker image tag ${JOB_NAME}v1.${BUILD_ID} ${DOCKERHUB_USER}/${JOB_NAME}v1.${BUILD_ID}
+sudo docker image tag ${JOB_NAME}v1.${BUILD_ID} ${DOCKERHUB_USER}/${JOB_NAME}:latest
+ 
+# Push to Docker Hub
+sudo docker image push ${DOCKERHUB_USER}/${JOB_NAME}v1.${BUILD_ID}
+sudo docker image push ${DOCKERHUB_USER}/${JOB_NAME}:latest
+ 
+# Clean up local images
+sudo docker image rmi ${JOB_NAME}v1.${BUILD_ID} \
+                      ${DOCKERHUB_USER}/${JOB_NAME}v1.${BUILD_ID} \
+                      ${DOCKERHUB_USER}/${JOB_NAME}:latest
+ 
+EOF
+ 
+# Step 4: Run playbook from Ansible to Docker Host
+ssh -o StrictHostKeyChecking=no -i "$PEM_KEY" $ANSIBLE_USER@$ANSIBLE_HOST << EOF
+  sudo ansible-playbook -i /root/sourcecode/inventory /root/sourcecode/run_container.yml
+EOF
+```
+
+### Step 33: Jenkins Pipeline (Option 2)
+
+#### 🖥️ Step 1: Prepare `jenkins.pem` on Jenkins Server
+
+1. Navigate to Jenkins home directory:
+ 
+```bash
+   cd /var/lib/jenkins
+```
+2. Create and paste your .pem key file:
+
+```bash
+nano jenkins.pem
+```
+3. Save and make it executable:
+
+```bash
+chmod +x jenkins.pem
+
+4. Permission In File (Ansible)
+
+```bash
+sudo chmod 777 /opt
+```
+
+#### Add Pipeline:
+```groovy
+automate project update pipline
+ 
+pipeline {
+    agent any
+ 
+    environment {
+        ANSIBLE_USER = "ubuntu"
+        ANSIBLE_HOST = "3.7.253.121"                    // Ansible EC2 public IP
+        PEM_KEY = "/var/lib/jenkins/jenkins.pem"
+        JOB_NAME = "meet"                               // Jenkins Job Name
+        DOCKERHUB_USER = "<Your DockerHub User Name>"
+        DOCKERHUB_PASS = "<Your DockerHub Password>"
+        PRIVATE_DOCKER_HOST = "172.31.14.70"            // Docker Host private IP
+    }
+ 
+    stages {
+        stage('Clone GitHub Repository') {
+            steps {
+                git branch: 'main', url: 'https://github.com/DhruvShah0612/project.git'
+            }
+        }
+ 
+        stage('Transfer Dockerfile to Ansible') {
+            steps {
+                sh """
+                rsync -avh -e "ssh -o StrictHostKeyChecking=no -i $PEM_KEY" $WORKSPACE/Dockerfile $ANSIBLE_USER@$ANSIBLE_HOST:/opt/
+                """
+            }
+        }
+ 
+        stage('Build and Push Docker Image on Ansible') {
+            steps {
+                sh """
+                ssh -o StrictHostKeyChecking=no -i "$PEM_KEY" $ANSIBLE_USER@$ANSIBLE_HOST << 'EOF'
+                cd /opt
+ 
+                echo "$DOCKERHUB_PASS" | sudo docker login -u $DOCKERHUB_USER --password-stdin
+ 
+                sudo docker image build -t ${JOB_NAME}v1.${BUILD_ID} .
+ 
+                sudo docker image tag ${JOB_NAME}v1.${BUILD_ID} ${DOCKERHUB_USER}/${JOB_NAME}v1.${BUILD_ID}
+                sudo docker image tag ${JOB_NAME}v1.${BUILD_ID} ${DOCKERHUB_USER}/${JOB_NAME}:latest
+ 
+                sudo docker image push ${DOCKERHUB_USER}/${JOB_NAME}v1.${BUILD_ID}
+                sudo docker image push ${DOCKERHUB_USER}/${JOB_NAME}:latest
+ 
+                sudo docker image rmi ${JOB_NAME}v1.${BUILD_ID} \\
+                                     ${DOCKERHUB_USER}/${JOB_NAME}v1.${BUILD_ID} \\
+                                     ${DOCKERHUB_USER}/${JOB_NAME}:latest
+EOF
+                """
+            }
+        }
+ 
+        stage('Create Inventory & Playbook on Ansible') {
+  steps {
+    sh """
+    ssh -o StrictHostKeyChecking=no -i $PEM_KEY $ANSIBLE_USER@$ANSIBLE_HOST << 'EOF'
+    sudo mkdir -p /root/sourcecode
+ 
+    sudo tee /root/sourcecode/inventory > /dev/null <<EOL
+[dockerhost]
+$PRIVATE_DOCKER_HOST ansible_user=root ansible_become=true
+EOL
+ 
+    sudo tee /root/sourcecode/run_container.yml > /dev/null <<EOL
+- hosts: all
+  become: yes
+  tasks:
+    - name: Pull latest image manually
+      ansible.builtin.shell: docker pull ${DOCKERHUB_USER}/${JOB_NAME}:latest
+ 
+    - name: Stop and remove old container
+      community.docker.docker_container:
+        name: cloudknowledge-container
+        state: absent
+ 
+    - name: Run updated container
+      community.docker.docker_container:
+        name: cloudknowledge-container
+        image: ${DOCKERHUB_USER}/${JOB_NAME}:latest
+        state: started
+        recreate: true
+        published_ports:
+          - "9000:80"
+EOL
+ 
+EOF
+    """
+  }
+}
+ 
+ 
+        stage('Run Ansible Playbook to Deploy') {
+            steps {
+                sh """
+                ssh -o StrictHostKeyChecking=no -i "$PEM_KEY" $ANSIBLE_USER@$ANSIBLE_HOST << 'EOF'
+                sudo ansible-playbook -i /root/sourcecode/inventory /root/sourcecode/run_container.yml
+EOF
+                """
+            }
+        }
+    }
+ 
+    post {
+        success {
+            echo "✅ Deployment successful. Visit your project at http://<Docker-Public-IP>:9000"
+        }
+        failure {
+            echo "❌ Deployment failed. Check the logs above."
+        }
+    }
+}
+```
+ 
+### Step 34: Access Deployed Web App
 
 ```url
 http://<Docker_Public_Ip>:9000
