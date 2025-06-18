@@ -504,7 +504,7 @@ pipeline {
     stages {
         stage('Clone GitHub Repository') {
             steps {
-                git branch: 'main', url: 'https://github.com/DhruvShah0612/project.git'
+                git branch: 'main', url: '<Your GitHub Repo>'
             }
         }
  
