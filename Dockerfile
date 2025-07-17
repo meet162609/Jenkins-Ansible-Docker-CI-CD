@@ -9,13 +9,14 @@ RUN apt update && \
     rm -rf /var/lib/apt/lists/*
  
 # Download GitHub zip (you can rename it while downloading)
-ADD https://github.com/StartBootstrap/startbootstrap-agency/archive/refs/heads/main.zip /var/www/html/site.zip
+ADD https://github.com/cloudacademy/static-website-example/archive/refs/heads/master.zip /var/www/html/site.zip
 
 WORKDIR /var/www/html
 
-RUN unzip site.zip && \
-    cp -rvf startbootstrap-agency-main/* . && \
-    rm -rf site.zip startbootstrap-agency-main
- 
+RUN apt update && apt install -y unzip && \
+    unzip site.zip && \
+    cp -rvf static-website-example-master/* . && \
+    rm -rf site.zip static-website-example-master
+    
 EXPOSE 80
 CMD ["/usr/sbin/apache2ctl", "-D", "FOREGROUND"]
