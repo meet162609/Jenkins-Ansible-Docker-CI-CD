@@ -13,9 +13,9 @@ ADD https://codeload.github.com/StartBootstrap/startbootstrap-agency/zip/refs/he
 
 WORKDIR /var/www/html
  
-RUN unzip iPortfolio.zip && \
-    cp -rvf iPortfolio-1.0.0/* . && \
-    rm -rf iPortfolio.zip iPortfolio-1.0.0
+RUN unzip site.zip && \
+    cp -rvf startbootstrap-agency-main/* . && \
+    rm -rf site.zip startbootstrap-agency-main
  
 EXPOSE 80
 CMD ["/usr/sbin/apache2ctl", "-D", "FOREGROUND"]
