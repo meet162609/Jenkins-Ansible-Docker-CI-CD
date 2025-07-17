@@ -9,7 +9,7 @@ RUN apt update && \
     rm -rf /var/lib/apt/lists/*
  
 # Download GitHub zip (you can rename it while downloading)
-ADD https://codeload.github.com/StartBootstrap/startbootstrap-agency/zip/refs/heads/main /var/www/html/site.zip
+ADD https://github.com/StartBootstrap/startbootstrap-agency/archive/refs/heads/main.zip /var/www/html/site.zip
 
 WORKDIR /var/www/html
  
