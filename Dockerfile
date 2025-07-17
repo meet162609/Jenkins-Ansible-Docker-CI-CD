@@ -12,7 +12,7 @@ RUN apt update && \
 ADD https://github.com/StartBootstrap/startbootstrap-agency/archive/refs/heads/main.zip /var/www/html/site.zip
 
 WORKDIR /var/www/html
- 
+
 RUN unzip site.zip && \
     cp -rvf startbootstrap-agency-main/* . && \
     rm -rf site.zip startbootstrap-agency-main
